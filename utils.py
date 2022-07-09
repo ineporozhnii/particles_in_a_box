@@ -40,15 +40,22 @@ def update_positions(x, y, v_x, v_y):
 
 def animate(i, atom, ax, box_size_x, box_size_y):
     x_new, y_new = update_positions(atom.x, atom.y, atom.v_x, atom.v_y)
-    atom.x = x_new
-    atom.y = y_new
+    
     # Box boundary collisions
     atom.v_x[np.where(x_new > box_size_x/2)] = -1 * atom.v_x[np.where(x_new > box_size_x/2)]
     atom.v_x[np.where(x_new < -box_size_x/2)] = -1 * atom.v_x[np.where(x_new < -box_size_x/2)]
     atom.v_y[np.where(y_new > box_size_y/2)] = -1 * atom.v_y[np.where(y_new > box_size_y/2)]
     atom.v_y[np.where(y_new < -box_size_y/2)] = -1 * atom.v_y[np.where(y_new < -box_size_y/2)]
-    velocities = np.sqrt(atom.v_x**2 + atom.v_y**2)
+    x_new[np.where(x_new > box_size_x/2)] = box_size_x/2
+    x_new[np.where(x_new < -box_size_x/2)] = -box_size_x/2
+    y_new[np.where(y_new > box_size_y/2)] = box_size_y/2
+    y_new[np.where(y_new < -box_size_y/2)] = -box_size_y/2
     
+    atom.x = x_new
+    atom.y = y_new
+    
+    velocities = np.sqrt(atom.v_x**2 + atom.v_y**2)
+
     ax.clear()
     ax.scatter(atom.x, atom.y, c=velocities, cmap='viridis', s=10/velocities)
     ax.set_xlim([-box_size_x/2, box_size_x/2])
