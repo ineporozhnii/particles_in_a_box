@@ -1,2 +1,2 @@
-# Particles_in_the_box
-Simulation of particle mechanics 
+# Simulation of particle mechanics 
+In this project I created Python program that simulates particle mechanics including particle collisions and acceleration.
