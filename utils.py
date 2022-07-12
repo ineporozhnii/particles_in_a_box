@@ -93,6 +93,10 @@ def calculate_distances(particles):
     return distance_matrix
 
 def get_colliding_particles_unique_index_pairs(colliding_particles_indicies):
+    """
+    Distance matrix is symmetric and therefore collision search provides indicies of each colliding particle pair twice (permuted indicies)  
+    We can exclude permutated indicies by taking set of sorted index pairs
+    """
     colliding_particles_all_index_pairs = np.column_stack((colliding_particles_indicies[0], colliding_particles_indicies[1]))
     colliding_particles_unique_index_pairs = np.array(list(set(tuple(sorted(index_pair)) for index_pair in colliding_particles_all_index_pairs)))
     return colliding_particles_unique_index_pairs
@@ -115,17 +119,17 @@ def simulate(frame_idx, particles, ax, box_size_x, box_size_y, restitution_coef_
     # Find indicies of colliding partilces
     colliding_particles_indicies = np.where((distance_matrix != 0) & (distance_matrix < particles.radii_sum))
     if colliding_particles_indicies[0].shape[0] > 0:
-        collision(particles, colliding_particles_indicies, velocities, restitution_coef_pc)
+        collision(particles, colliding_particles_indicies, restitution_coef_pc)
     # Plot particles
     ax.clear()
    # ax.scatter(particles.x, particles.y, s=100, c=velocities, cmap='viridis', label = f"Average velocity {np.mean(velocities)}")
     color_map = matplotlib.cm.jet
-    circles = [plt.Circle((x_i, y_i), radius=r) for x_i, y_i, r, v in zip(particles.x, particles.y, particles.radii, velocities)]
+    circles = [plt.Circle((x_i, y_i), radius=r) for x_i, y_i, r in zip(particles.x, particles.y, particles.radii)]
     collection = matplotlib.collections.PatchCollection(circles, cmap=matplotlib.cm.jet, alpha=0.8)
-    collection.set_edgecolors('b')
+    collection.set_edgecolors('k')
     collection.set_linewidth(1)
     collection.set_array(velocities)
-    collection.set_clim([0, 20])
+    collection.set_clim([0, 10])
     ax.add_collection(collection)
     ax.axis('equal')
     ax.set_xlim([-box_size_x/2, box_size_x/2])
@@ -143,24 +147,16 @@ def collision(particles, colliding_particles_indicies, restitution_coef_pc=1.0, 
         colliding_particles_indicies  - indicies of particles that collide (determined from distance matrix)
         restitution_coef_pc - determines how much energy lost during particle-particle collision (=1 for elastic collisions, <1 for inelastic collisions)
         adjust_positions - if True, shifts particle positions during collision from circle overlap to circle contact to prevent particle binding
-
-    Distance matrix is symmetric and therefore collision search provides each colliding particle pair twice (with permuted indicies)  
-    We can exclude permutated indicies by taking set of sorted index pairs
     """
-
     colliding_particles_unique_index_pairs = get_colliding_particles_unique_index_pairs(colliding_particles_indicies)
     colliding_particles_1 = colliding_particles_unique_index_pairs.T[0]
     colliding_particles_2 = colliding_particles_unique_index_pairs.T[1]
-    
-    print(colliding_particles_indicies)
-    print(colliding_particles_1, " ", colliding_particles_2)
     
     if adjust_positions:
         positions = np.column_stack((particles.x, particles.y))
         distances = np.linalg.norm(positions[colliding_particles_1] - positions[colliding_particles_2], axis=1)
         norm_vector = (positions[colliding_particles_1] - positions[colliding_particles_2])/distances[:, None]
         shifts = (particles.radii[colliding_particles_1] + particles.radii[colliding_particles_2] - distances)/2
-        print(f"Shifts {shifts}")
         adjusted_positions_1 = positions[colliding_particles_1] + shifts[:, None] * norm_vector
         adjusted_positions_2 = positions[colliding_particles_2] - shifts[:, None] * norm_vector
         particles.x[colliding_particles_1] = adjusted_positions_1.T[0]
