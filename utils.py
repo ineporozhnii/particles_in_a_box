@@ -52,16 +52,12 @@ def get_init_conditions(n_particles, position_limits_x, position_limits_y, veloc
         overlapping_particles_indicies = np.where((distance_matrix != 0) & (distance_matrix <= radii_sum+1.0))
         if overlapping_particles_indicies[0].shape[0] > 0:
             del coordinates[-1]
-        
-        
-        
+             
     x_init = np.array(coordinates).T[0]
     y_init = np.array(coordinates).T[1]
 
-
     v_x_init = np.random.uniform(low=velocity_limits_x[0], high=velocity_limits_x[1], size=(n_particles,))
     v_y_init = np.random.uniform(low=velocity_limits_y[0], high=velocity_limits_y[1], size=(n_particles,))
-    
     return x_init, y_init, v_x_init, v_y_init, radii
 
 
@@ -91,6 +87,17 @@ def update_positions(particles, x_new, y_new, box_size_x, box_size_y, restitutio
     particles.y = y_new
 
 
+def calculate_distances(particles):
+    coordinates = np.column_stack((particles.x, particles.y))
+    distance_matrix = np.linalg.norm(coordinates - coordinates[:,None], axis=-1)
+    return distance_matrix
+
+def get_colliding_particles_unique_index_pairs(colliding_particles_indicies):
+    colliding_particles_all_index_pairs = np.column_stack((colliding_particles_indicies[0], colliding_particles_indicies[1]))
+    colliding_particles_unique_index_pairs = np.array(list(set(tuple(sorted(index_pair)) for index_pair in colliding_particles_all_index_pairs)))
+    return colliding_particles_unique_index_pairs
+
+
 def simulate(frame_idx, particles, ax, box_size_x, box_size_y, restitution_coef_bc, restitution_coef_pc):
     x_new, y_new = translate(particles)
     # Add acceleration before position update
@@ -118,43 +125,48 @@ def simulate(frame_idx, particles, ax, box_size_x, box_size_y, restitution_coef_
     collection.set_edgecolors('b')
     collection.set_linewidth(1)
     collection.set_array(velocities)
-    collection.set_clim([0, 7])
+    collection.set_clim([0, 20])
     ax.add_collection(collection)
     ax.axis('equal')
     ax.set_xlim([-box_size_x/2, box_size_x/2])
     ax.set_ylim([-box_size_y/2, box_size_y/2])
     plt.xticks([], [])
     plt.yticks([], [])
-    
     #print(f"Average velocity {np.mean(velocities)}")
 
 
-def calculate_distances(particles):
-    coordinates = np.column_stack((particles.x, particles.y))
-    distance_matrix = np.linalg.norm(coordinates - coordinates[:,None], axis=-1)
-    return distance_matrix
-
-
-def collision(particles, colliding_particles_indicies, velocities, restitution_coef_pc=1.0):
+def collision(particles, colliding_particles_indicies, restitution_coef_pc=1.0, adjust_positions=True):
     """
     This function calculates and updates velocities of particles after collision
     Input: 
         particles - holds information about all particles
         colliding_particles_indicies  - indicies of particles that collide (determined from distance matrix)
-        velocities - particle velocities 
         restitution_coef_pc - determines how much energy lost during particle-particle collision (=1 for elastic collisions, <1 for inelastic collisions)
+        adjust_positions - if True, shifts particle positions during collision from circle overlap to circle contact to prevent particle binding
 
     Distance matrix is symmetric and therefore collision search provides each colliding particle pair twice (with permuted indicies)  
-    We can exclude permutated indicies by selecting first part of colliding_particles_indicies array using np.split()
+    We can exclude permutated indicies by taking set of sorted index pairs
     """
 
-    all_colliding_particles_index_pairs = np.column_stack((colliding_particles_indicies[0], colliding_particles_indicies[1]))
-    unique_colliding_particles_index_pairs = np.array(list(set(tuple(sorted(index_pair)) for index_pair in all_colliding_particles_index_pairs)))
-    colliding_particles_1 = unique_colliding_particles_index_pairs.T[0]
-    colliding_particles_2 = unique_colliding_particles_index_pairs.T[1]
+    colliding_particles_unique_index_pairs = get_colliding_particles_unique_index_pairs(colliding_particles_indicies)
+    colliding_particles_1 = colliding_particles_unique_index_pairs.T[0]
+    colliding_particles_2 = colliding_particles_unique_index_pairs.T[1]
     
     print(colliding_particles_indicies)
     print(colliding_particles_1, " ", colliding_particles_2)
+    
+    if adjust_positions:
+        positions = np.column_stack((particles.x, particles.y))
+        distances = np.linalg.norm(positions[colliding_particles_1] - positions[colliding_particles_2], axis=1)
+        norm_vector = (positions[colliding_particles_1] - positions[colliding_particles_2])/distances[:, None]
+        shifts = (particles.radii[colliding_particles_1] + particles.radii[colliding_particles_2] - distances)/2
+        print(f"Shifts {shifts}")
+        adjusted_positions_1 = positions[colliding_particles_1] + shifts[:, None] * norm_vector
+        adjusted_positions_2 = positions[colliding_particles_2] - shifts[:, None] * norm_vector
+        particles.x[colliding_particles_1] = adjusted_positions_1.T[0]
+        particles.y[colliding_particles_1] = adjusted_positions_1.T[1]
+        particles.x[colliding_particles_2] = adjusted_positions_2.T[0]
+        particles.y[colliding_particles_2] = adjusted_positions_2.T[1]
 
     velocities = np.column_stack((particles.v_x, particles.v_y))
     positions = np.column_stack((particles.x, particles.y))
