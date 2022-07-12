@@ -7,7 +7,7 @@ class Particles():
     """
     This class holds particles' positions, velocities, accelerations, and properties
     """
-    def __init__(self, x, y, v_x, v_y, a_x, a_y, radii, vector_of_masses) -> None:
+    def __init__(self, x, y, v_x, v_y, radii, vector_of_masses) -> None:
         self.radii = radii
         self.mass = vector_of_masses
         self.colors = "cornflowerblue"
@@ -15,8 +15,6 @@ class Particles():
         self.y = y
         self.v_x = v_x
         self.v_y = v_y
-        self.a_x = a_x
-        self.a_y = a_y
         self.radii_sum = self.radii[:, None] + self.radii[None, :]
 
 
@@ -67,9 +65,9 @@ def translate(particles, dt=0.01):
     return x_new, y_new
 
 
-def accelerate(particles, dt=0.01):
-    particles.v_x = particles.v_x + particles.a_x * dt
-    particles.v_y = particles.v_y + particles.a_y * dt
+def accelerate(particles, acceleration_vector, dt=0.01):
+    particles.v_x = particles.v_x + acceleration_vector[0] * dt
+    particles.v_y = particles.v_y + acceleration_vector[1] * dt
 
 
 def update_positions(particles, x_new, y_new, box_size_x, box_size_y, restitution_coef_bc=1.0):
@@ -102,41 +100,65 @@ def get_colliding_particles_unique_index_pairs(colliding_particles_indicies):
     return colliding_particles_unique_index_pairs
 
 
-def simulate(frame_idx, particles, ax, box_size_x, box_size_y, restitution_coef_bc, restitution_coef_pc):
+def simulate(frame_idx, particles, acceleration_vector, ax, box_size_x, box_size_y, restitution_coef_bc, restitution_coef_pc):
     x_new, y_new = translate(particles)
-    # Add acceleration before position update
     if frame_idx%2 != 0:
-        accelerate(particles)
+        accelerate(particles, acceleration_vector)
     update_positions(particles, x_new, y_new, box_size_x, box_size_y, restitution_coef_bc)
-    # Add acceleration after position update
     if frame_idx%2 == 0:
-        accelerate(particles)
-
-    # Calculate velocities
+        accelerate(particles, acceleration_vector)
     velocities = np.sqrt(particles.v_x**2 + particles.v_y**2)
-    # Find distances between particles
     distance_matrix = calculate_distances(particles)
     # Find indicies of colliding partilces
     colliding_particles_indicies = np.where((distance_matrix != 0) & (distance_matrix < particles.radii_sum))
     if colliding_particles_indicies[0].shape[0] > 0:
         collision(particles, colliding_particles_indicies, restitution_coef_pc)
-    # Plot particles
+
     ax.clear()
-   # ax.scatter(particles.x, particles.y, s=100, c=velocities, cmap='viridis', label = f"Average velocity {np.mean(velocities)}")
     color_map = matplotlib.cm.jet
     circles = [plt.Circle((x_i, y_i), radius=r) for x_i, y_i, r in zip(particles.x, particles.y, particles.radii)]
     collection = matplotlib.collections.PatchCollection(circles, cmap=matplotlib.cm.jet, alpha=0.8)
     collection.set_edgecolors('k')
     collection.set_linewidth(1)
     collection.set_array(velocities)
-    collection.set_clim([0, 10])
+    collection.set_clim([0, 50])
     ax.add_collection(collection)
     ax.axis('equal')
     ax.set_xlim([-box_size_x/2, box_size_x/2])
     ax.set_ylim([-box_size_y/2, box_size_y/2])
-    plt.xticks([], [])
-    plt.yticks([], [])
-    #print(f"Average velocity {np.mean(velocities)}")
+    ax.set_xticks([], [])
+    ax.set_yticks([], [])
+
+def simulate_compare(frame_idx, particles_list, acceleration_vector_list, ax_list, box_size_x, box_size_y, restitution_coef_bc_list, restitution_coef_pc_list):
+    for particles, acceleration_vector, ax, restitution_coef_bc, restitution_coef_pc in zip(particles_list, acceleration_vector_list, ax_list, restitution_coef_bc_list, restitution_coef_pc_list):
+        print(acceleration_vector)
+        x_new, y_new = translate(particles)
+        if frame_idx%2 != 0:
+            accelerate(particles, acceleration_vector)
+        update_positions(particles, x_new, y_new, box_size_x, box_size_y, restitution_coef_bc)
+        if frame_idx%2 == 0:
+            accelerate(particles, acceleration_vector)
+        velocities = np.sqrt(particles.v_x**2 + particles.v_y**2)
+        distance_matrix = calculate_distances(particles)
+        # Find indicies of colliding partilces
+        colliding_particles_indicies = np.where((distance_matrix != 0) & (distance_matrix < particles.radii_sum))
+        if colliding_particles_indicies[0].shape[0] > 0:
+            collision(particles, colliding_particles_indicies, restitution_coef_pc)
+
+        ax.clear()
+        color_map = matplotlib.cm.jet
+        circles = [plt.Circle((x_i, y_i), radius=r) for x_i, y_i, r in zip(particles.x, particles.y, particles.radii)]
+        collection = matplotlib.collections.PatchCollection(circles, cmap=matplotlib.cm.jet, alpha=0.8)
+        collection.set_edgecolors('k')
+        collection.set_linewidth(1)
+        collection.set_array(velocities)
+        collection.set_clim([0, 25])
+        ax.add_collection(collection)
+        ax.axis('scaled')
+        ax.set_xlim([-box_size_x/2, box_size_x/2])
+        ax.set_ylim([-box_size_y/2, box_size_y/2])
+        ax.set_xticks([], [])
+        ax.set_yticks([], [])
 
 
 def collision(particles, colliding_particles_indicies, restitution_coef_pc=1.0, adjust_positions=True):
