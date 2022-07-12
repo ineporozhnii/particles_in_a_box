@@ -20,7 +20,7 @@ class Particles():
         self.radii_sum = self.radii[:, None] + self.radii[None, :]
 
 
-def get_init_conditions(n_particles, position_limits_x, position_limits_y, velocity_limits_x, velocity_limits_y):
+def get_init_conditions(n_particles, position_limits_x, position_limits_y, velocity_limits_x, velocity_limits_y, radii_limits):
     """
     This function creates initial distribution of particle positions, velocities, and radii
     Input:
@@ -36,11 +36,32 @@ def get_init_conditions(n_particles, position_limits_x, position_limits_y, veloc
         v_y_init - initial y velocities 
         radii - vector of particles' radii 
     """
-    x_init = np.random.uniform(low=position_limits_x[0], high=position_limits_x[1], size=(n_particles,))
-    y_init = np.random.uniform(low=position_limits_y[0], high=position_limits_y[1], size=(n_particles,))
+    radii = np.random.uniform(low=radii_limits[0], high=radii_limits[1], size=(n_particles,))
+    coordinates = []
+    x_first = np.random.uniform(low=position_limits_x[0], high=position_limits_x[1], size=(1,))[0]
+    y_first = np.random.uniform(low=position_limits_y[0], high=position_limits_y[1], size=(1,))[0]
+    coordinates.append([x_first, y_first])
+    print(x_first)
+    while len(coordinates) < n_particles: 
+        x_check = np.random.uniform(low=position_limits_x[0], high=position_limits_x[1], size=(1,))[0]
+        y_check = np.random.uniform(low=position_limits_y[0], high=position_limits_y[1], size=(1,))[0]
+        coordinates.append([x_check, y_check])
+        radii_sum = radii[:len(coordinates), None] + radii[None, :len(coordinates)]
+        distance_matrix = np.linalg.norm(np.array(coordinates) - np.array(coordinates)[:,None], axis=-1)
+        print(distance_matrix)
+        overlapping_particles_indicies = np.where((distance_matrix != 0) & (distance_matrix <= radii_sum+1.0))
+        if overlapping_particles_indicies[0].shape[0] > 0:
+            del coordinates[-1]
+        
+        
+        
+    x_init = np.array(coordinates).T[0]
+    y_init = np.array(coordinates).T[1]
+
+
     v_x_init = np.random.uniform(low=velocity_limits_x[0], high=velocity_limits_x[1], size=(n_particles,))
     v_y_init = np.random.uniform(low=velocity_limits_y[0], high=velocity_limits_y[1], size=(n_particles,))
-    radii = np.ones(n_particles)
+    
     return x_init, y_init, v_x_init, v_y_init, radii
 
 
@@ -85,20 +106,26 @@ def simulate(frame_idx, particles, ax, box_size_x, box_size_y, restitution_coef_
     # Find distances between particles
     distance_matrix = calculate_distances(particles)
     # Find indicies of colliding partilces
-    colliding_particles_indicies = np.where((distance_matrix != 0) & (distance_matrix <= particles.radii_sum))
+    colliding_particles_indicies = np.where((distance_matrix != 0) & (distance_matrix < particles.radii_sum))
     if colliding_particles_indicies[0].shape[0] > 0:
         collision(particles, colliding_particles_indicies, velocities, restitution_coef_pc)
     # Plot particles
     ax.clear()
    # ax.scatter(particles.x, particles.y, s=100, c=velocities, cmap='viridis', label = f"Average velocity {np.mean(velocities)}")
-    circles = [plt.Circle((x_i, y_i), radius=r, linewidth=1) for x_i, y_i, r in zip(particles.x, particles.y, particles.radii)]
-    collection = matplotlib.collections.PatchCollection(circles)
+    color_map = matplotlib.cm.jet
+    circles = [plt.Circle((x_i, y_i), radius=r) for x_i, y_i, r, v in zip(particles.x, particles.y, particles.radii, velocities)]
+    collection = matplotlib.collections.PatchCollection(circles, cmap=matplotlib.cm.jet, alpha=0.8)
+    collection.set_edgecolors('b')
+    collection.set_linewidth(1)
+    collection.set_array(velocities)
+    collection.set_clim([0, 7])
     ax.add_collection(collection)
     ax.axis('equal')
     ax.set_xlim([-box_size_x/2, box_size_x/2])
     ax.set_ylim([-box_size_y/2, box_size_y/2])
     plt.xticks([], [])
     plt.yticks([], [])
+    
     #print(f"Average velocity {np.mean(velocities)}")
 
 
@@ -120,19 +147,25 @@ def collision(particles, colliding_particles_indicies, velocities, restitution_c
     Distance matrix is symmetric and therefore collision search provides each colliding particle pair twice (with permuted indicies)  
     We can exclude permutated indicies by selecting first part of colliding_particles_indicies array using np.split()
     """
-    colliding_particles_1 = np.split(colliding_particles_indicies[0], 2)[0]
-    colliding_particles_2 = np.split(colliding_particles_indicies[1], 2)[0]
+
+    all_colliding_particles_index_pairs = np.column_stack((colliding_particles_indicies[0], colliding_particles_indicies[1]))
+    unique_colliding_particles_index_pairs = np.array(list(set(tuple(sorted(index_pair)) for index_pair in all_colliding_particles_index_pairs)))
+    colliding_particles_1 = unique_colliding_particles_index_pairs.T[0]
+    colliding_particles_2 = unique_colliding_particles_index_pairs.T[1]
+    
+    print(colliding_particles_indicies)
+    print(colliding_particles_1, " ", colliding_particles_2)
 
     velocities = np.column_stack((particles.v_x, particles.v_y))
     positions = np.column_stack((particles.x, particles.y))
  
     impact_velocities_1 = np.sum((velocities[colliding_particles_1] - velocities[colliding_particles_2]) * (positions[colliding_particles_1] - positions[colliding_particles_2]), axis=1)
-    impact_velocities_1 =  (positions[colliding_particles_1] - positions[colliding_particles_2])/(np.linalg.norm(positions[colliding_particles_1] - positions[colliding_particles_2])**2) * impact_velocities_1[:, None]
+    impact_velocities_1 = (positions[colliding_particles_1] - positions[colliding_particles_2])/(np.linalg.norm(positions[colliding_particles_1] - positions[colliding_particles_2], axis=1)**2)[:, None] * impact_velocities_1[:, None]
     effective_mass_1 = (1+restitution_coef_pc) * particles.mass[colliding_particles_2]/(particles.mass[colliding_particles_1] + particles.mass[colliding_particles_2])
     delta_v_1 = effective_mass_1[:, None] * impact_velocities_1
 
     impact_velocities_2 = np.sum((velocities[colliding_particles_2] - velocities[colliding_particles_1]) * (positions[colliding_particles_2] - positions[colliding_particles_1]), axis=1)
-    impact_velocities_2 = (positions[colliding_particles_2] - positions[colliding_particles_1])/(np.linalg.norm(positions[colliding_particles_2] - positions[colliding_particles_1])**2) * impact_velocities_2[:, None]
+    impact_velocities_2 = (positions[colliding_particles_2] - positions[colliding_particles_1])/(np.linalg.norm(positions[colliding_particles_2] - positions[colliding_particles_1], axis=1)**2)[:, None] * impact_velocities_2[:, None]
     effective_mass_2 = (1+restitution_coef_pc) * particles.mass[colliding_particles_1]/(particles.mass[colliding_particles_1] + particles.mass[colliding_particles_2])
     delta_v_2 = effective_mass_2[:, None] * impact_velocities_2
 
@@ -140,4 +173,3 @@ def collision(particles, colliding_particles_indicies, velocities, restitution_c
     particles.v_y[colliding_particles_1] = particles.v_y[colliding_particles_1] - delta_v_1.T[1]
     particles.v_x[colliding_particles_2] = particles.v_x[colliding_particles_2] - delta_v_2.T[0]
     particles.v_y[colliding_particles_2] = particles.v_y[colliding_particles_2] - delta_v_2.T[1]
-    
