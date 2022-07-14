@@ -1,5 +1,8 @@
 # Simulation of particle mechanics 
 In this project I created Python program that simulates particle mechanics including particle collisions and acceleration by external force.
+<p align="center">
+  <img src="https://github.com/ineporozhnii/Particles_in_the_box/blob/main/media/simulation_light.gif" alt="animated" />
+</p>
 
 # Implementation 
 The simulation starts with assignment of initial conditions and parameters. The parameters that can be adjusted before simulation include: 
