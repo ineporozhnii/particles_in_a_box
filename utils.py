@@ -10,7 +10,6 @@ class Particles():
     def __init__(self, x, y, v_x, v_y, radii, vector_of_masses) -> None:
         self.radii = radii
         self.mass = vector_of_masses
-        self.colors = "cornflowerblue"
         self.x = x
         self.y = y
         self.v_x = v_x
@@ -129,8 +128,8 @@ def simulate(frame_idx, particles, acceleration_vector, ax, box_size_x, box_size
     ax.set_xticks([], [])
     ax.set_yticks([], [])
 
-def simulate_compare(frame_idx, particles_list, acceleration_vector_list, ax_list, box_size_x, box_size_y, restitution_coef_bc_list, restitution_coef_pc_list):
-    for particles, acceleration_vector, ax, restitution_coef_bc, restitution_coef_pc in zip(particles_list, acceleration_vector_list, ax_list, restitution_coef_bc_list, restitution_coef_pc_list):
+def simulate_compare(frame_idx, particles_list, acceleration_vector_list, ax_list, box_size_x, box_size_y, restitution_coef_bc_list, restitution_coef_pc_list, titles):
+    for particles, acceleration_vector, ax, restitution_coef_bc, restitution_coef_pc, title in zip(particles_list, acceleration_vector_list, ax_list, restitution_coef_bc_list, restitution_coef_pc_list, titles):
         print(acceleration_vector)
         x_new, y_new = translate(particles)
         if frame_idx%2 != 0:
@@ -153,6 +152,7 @@ def simulate_compare(frame_idx, particles_list, acceleration_vector_list, ax_lis
         collection.set_linewidth(1)
         collection.set_array(velocities)
         collection.set_clim([0, 25])
+        ax.set_title(title)
         ax.add_collection(collection)
         ax.axis('scaled')
         ax.set_xlim([-box_size_x/2, box_size_x/2])
