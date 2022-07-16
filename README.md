@@ -21,3 +21,7 @@ Positions, velocities, and radii of all particles are stored as arrays in Partic
 <p align="center">
   <img src="https://github.com/ineporozhnii/Particles_in_the_box/blob/main/media/restitution_coef_comparison.gif" alt="animated" />
 </p>
+
+<p align="center">
+  <img src="https://github.com/ineporozhnii/Particles_in_the_box/blob/main/media/acceleration_vector_comparison.gif" alt="animated" />
+</p>
