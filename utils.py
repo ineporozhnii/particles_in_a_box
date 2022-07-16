@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 
 class Particles():
     """
-    This class holds particles' positions, velocities, accelerations, and properties
+    This class holds particles radii, masses, positions, and velocities
+    radii_sum: matrix of radii sums for all particles. It is used to detect collisions (particle overlap)
     """
     def __init__(self, x, y, v_x, v_y, radii, vector_of_masses) -> None:
         self.radii = radii
@@ -20,32 +21,34 @@ class Particles():
 def get_init_conditions(n_particles, position_limits_x, position_limits_y, velocity_limits_x, velocity_limits_y, radii_limits):
     """
     This function creates initial distribution of particle positions, velocities, and radii
+    The while loop ensures that all particles are initialy placed without overlap
     Input:
-        n_atoms - number of atoms in the simulations
-        position_limits_x - list of low and high limits for initial atomic positions on x axis
-        position_limits_y - list of low and high limits for initial atomic positions on y axis
-        velocity_limits_x - list of low and high limits for initial atomic velocities on x axis
-        velocity_limits_y - list of low and high limits for initial atomic velocities on y axis
+        n_particles - number of particles in the simulations
+        position_limits_x: list of low and high limits for initial particle positions on x axis
+        position_limits_y: list of low and high limits for initial particle positions on y axis
+        velocity_limits_x: list of low and high limits for initial particle velocities on x axis
+        velocity_limits_y: list of low and high limits for initial particle velocities on y axis
+        radii_limits: list of low and high limits for particle radii
     Output:
-        x_init - initial x coordinates 
-        y_init - initial y coordinates 
-        v_x_init - initial x velocities 
-        v_y_init - initial y velocities 
-        radii - vector of particles' radii 
+        x_init: initial x coordinates 
+        y_init: initial y coordinates 
+        v_x_init: initial x velocities 
+        v_y_init: initial y velocities 
+        radii: vector of particles radii 
     """
     radii = np.random.uniform(low=radii_limits[0], high=radii_limits[1], size=(n_particles,))
     coordinates = []
+
     x_first = np.random.uniform(low=position_limits_x[0], high=position_limits_x[1], size=(1,))[0]
     y_first = np.random.uniform(low=position_limits_y[0], high=position_limits_y[1], size=(1,))[0]
     coordinates.append([x_first, y_first])
-    print(x_first)
+
     while len(coordinates) < n_particles: 
         x_check = np.random.uniform(low=position_limits_x[0], high=position_limits_x[1], size=(1,))[0]
         y_check = np.random.uniform(low=position_limits_y[0], high=position_limits_y[1], size=(1,))[0]
         coordinates.append([x_check, y_check])
         radii_sum = radii[:len(coordinates), None] + radii[None, :len(coordinates)]
         distance_matrix = np.linalg.norm(np.array(coordinates) - np.array(coordinates)[:,None], axis=-1)
-        print(distance_matrix)
         overlapping_particles_indicies = np.where((distance_matrix != 0) & (distance_matrix <= radii_sum+1.0))
         if overlapping_particles_indicies[0].shape[0] > 0:
             del coordinates[-1]
@@ -59,22 +62,32 @@ def get_init_conditions(n_particles, position_limits_x, position_limits_y, veloc
 
 
 def translate(particles, dt=0.01):
+    """
+    Calculates particles updated positions
+    """
     x_new = particles.x + particles.v_x * dt
     y_new = particles.y + particles.v_y * dt
     return x_new, y_new
 
 
 def accelerate(particles, acceleration_vector, dt=0.01):
+    """
+    Updates particles velocities due to acceleration
+    """
     particles.v_x = particles.v_x + acceleration_vector[0] * dt
     particles.v_y = particles.v_y + acceleration_vector[1] * dt
 
 
 def update_positions(particles, x_new, y_new, box_size_x, box_size_y, restitution_coef_bc=1.0):
-    # Box boundary collisions
+    """
+    This function detects particle-border colissions and updates particle positions 
+    """
+    # Particle-boundary collisions
     particles.v_x[np.where(x_new + particles.radii > box_size_x/2)] = -1 * restitution_coef_bc * particles.v_x[np.where(x_new + particles.radii > box_size_x/2)]
     particles.v_x[np.where(x_new - particles.radii < -box_size_x/2)] = -1 * restitution_coef_bc * particles.v_x[np.where(x_new - particles.radii < -box_size_x/2)]
     particles.v_y[np.where(y_new + particles.radii > box_size_y/2)] = -1 * restitution_coef_bc * particles.v_y[np.where(y_new + particles.radii > box_size_y/2)]
     particles.v_y[np.where(y_new - particles.radii < -box_size_y/2)] = -1 * restitution_coef_bc * particles.v_y[np.where(y_new - particles.radii < -box_size_y/2)]
+    # Adjust positions of colliding particles
     x_new[np.where(x_new + particles.radii > box_size_x/2)] = box_size_x/2 - particles.radii[np.where(x_new + particles.radii > box_size_x/2)]
     x_new[np.where(x_new - particles.radii < -box_size_x/2)] = -box_size_x/2 + particles.radii[np.where(x_new - particles.radii < -box_size_x/2)]
     y_new[np.where(y_new + particles.radii > box_size_y/2)] = box_size_y/2 - particles.radii[np.where(y_new + particles.radii > box_size_y/2)]
@@ -85,9 +98,13 @@ def update_positions(particles, x_new, y_new, box_size_x, box_size_y, restitutio
 
 
 def calculate_distances(particles):
+    """
+    This function calculates matrix of distances between all particles 
+    """
     coordinates = np.column_stack((particles.x, particles.y))
     distance_matrix = np.linalg.norm(coordinates - coordinates[:,None], axis=-1)
     return distance_matrix
+
 
 def get_colliding_particles_unique_index_pairs(colliding_particles_indicies):
     """
@@ -114,7 +131,6 @@ def simulate(frame_idx, particles, acceleration_vector, ax, box_size_x, box_size
         collision(particles, colliding_particles_indicies, restitution_coef_pc)
 
     ax.clear()
-    color_map = matplotlib.cm.jet
     circles = [plt.Circle((x_i, y_i), radius=r) for x_i, y_i, r in zip(particles.x, particles.y, particles.radii)]
     collection = matplotlib.collections.PatchCollection(circles, cmap=matplotlib.cm.jet, alpha=0.8)
     collection.set_edgecolors('k')
@@ -145,13 +161,12 @@ def simulate_compare(frame_idx, particles_list, acceleration_vector_list, ax_lis
             collision(particles, colliding_particles_indicies, restitution_coef_pc)
 
         ax.clear()
-        color_map = matplotlib.cm.jet
         circles = [plt.Circle((x_i, y_i), radius=r) for x_i, y_i, r in zip(particles.x, particles.y, particles.radii)]
         collection = matplotlib.collections.PatchCollection(circles, cmap=matplotlib.cm.jet, alpha=0.8)
         collection.set_edgecolors('k')
         collection.set_linewidth(1)
         collection.set_array(velocities)
-        collection.set_clim([0, 25])
+        collection.set_clim([0, 50])
         ax.set_title(title)
         ax.add_collection(collection)
         ax.axis('scaled')
