@@ -16,7 +16,7 @@ The simulation starts with assignment of initial conditions and parameters. The 
 * Restitution coefficient for particle-particle collisions
 * External acceleration vector  
 
-Positions, velocities, and radii of all particles are stored as arrays in Particles() class. This allows us to avoid any explicit loops during the simulation and use the power of linear algebra, vectorization, and broadcasting. At each simulation frame, the distance matrix between all particles is calculated and colliding particle pairs are detected. The velocities of particle pairs after the collision are calculated using following equations:
+Positions, velocities, masses, and radii of all particles are stored as arrays in Particles() class. This allows us to avoid any explicit loops during the simulation and use the power of linear algebra, vectorization, and broadcasting. At each simulation frame, the distance matrix between all particles is calculated and colliding particle pairs are detected. The velocities of particle pairs after the collision are calculated using following equations:
 
 $$ \mathbf{v_1'} = \mathbf{v_1} - {{(C_r + 1) m_2 } \over {m_1 + m_2}} {\langle {\mathbf{v_1} - \mathbf{v_2}}, {\mathbf{x_1} - \mathbf{x_2}}\rangle \over {|| \mathbf{x_1} - \mathbf{x_2} ||^2}} (\mathbf{x_1} - \mathbf{x_2})$$
 
