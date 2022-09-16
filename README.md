@@ -24,7 +24,7 @@ $$ \mathbf{v_2'} = \mathbf{v_2} - {{(C_r + 1) m_1 } \over {m_1 + m_2}} {\langle 
 
 Where $\mathbf{v_1'}$ and $\mathbf{v_2'}$ - velocity vectors after the collision, $\mathbf{v_1}$ and $\mathbf{v_2}$ - velocity vectors before the collision, $\mathbf{x_2}$ and $\mathbf{x_1}$ - position vectors, $m_1$ and $m_2$ - particle masses, $C_r$ - restitution coefficient for particle-particle collisions. $\langle \ , \rangle$ indicate the dot product of two vectors.
 
-By changing restitution coefficients for particle-particle and particle-border collisions we can compare systems with elastic ($C_r = 1$) and inelastic ($C_r < 1$) collisions. Particles are coloured depending on their velocity (red represents higher velocity and blue represents lower velocity).
+By changing restitution coefficients for particle-particle and particle-border collisions we can compare systems with elastic ( $C_r$ = 1 ) and inelastic ( $C_r$ < 1 ) collisions. Particles are coloured depending on their velocity (red represents higher velocity and blue represents lower velocity).
 
 <p align="center">
   <img src="https://github.com/ineporozhnii/Particles_in_the_box/blob/main/media/restitution_coef_comparison.gif" alt="animated" />
